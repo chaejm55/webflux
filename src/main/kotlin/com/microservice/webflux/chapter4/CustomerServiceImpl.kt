@@ -2,6 +2,10 @@ package com.microservice.webflux.chapter4
 
 import com.microservice.webflux.chapter4.Customer.Telephone
 import org.springframework.stereotype.Component
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 import java.util.concurrent.ConcurrentHashMap
 
 
@@ -16,10 +20,17 @@ class CustomerServiceImpl : CustomerService {
 
     private val customers = ConcurrentHashMap<Int, Customer>(initialCustomers.associateBy(Customer::id))
 
-    override fun getCustomer(id: Int): Customer? = customers[id]
+    override fun getCustomer(id: Int): Mono<Customer> = customers[id]?.toMono() ?: Mono.empty() // null 값 없도록 처리
 
-    override fun searchCustomers(nameFilter: String): List<Customer> =
+    override fun searchCustomers(nameFilter: String): Flux<Customer> =
         customers.filter {
             it.value.name.contains(nameFilter, true)
-        }.map(Map.Entry<Int, Customer>::value).toList()
+        }.map(Map.Entry<Int, Customer>::value).toFlux()
+
+    override fun createCustomer(customerMono: Mono<Customer>): Mono<Customer> {
+        return customerMono.map {
+            customers[it.id] = it
+            it
+        }
+    }
 }
