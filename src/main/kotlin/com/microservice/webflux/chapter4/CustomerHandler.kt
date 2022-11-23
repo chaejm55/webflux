@@ -6,6 +6,7 @@ import org.springframework.web.reactive.function.BodyInserters.fromValue
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse.*
 import org.springframework.web.reactive.function.server.bodyToMono
+import reactor.kotlin.core.publisher.onErrorResume
 import java.net.URI
 
 @Component
@@ -25,8 +26,13 @@ class CustomerHandler(val customerService: CustomerService) { // get 요청 응�
     
     // 1. bodyToMono()로 본문을 Mono<Customer>로 변환
     // 2. 리소스 위치를 헤더로 반환하도록 변경
+    // 3. onErrorResume으로 오류 처리
     fun create(serverRequest: ServerRequest) =
         customerService.createCustomer(serverRequest.bodyToMono()).flatMap {
             created(URI.create("/functional/customer/${it.id}")).build()
+        }
+        .onErrorResume(Exception::class) {
+            badRequest().body(fromValue(ErrorResponse("error creating customer",
+                it.message?:"error")))
         }
 }
